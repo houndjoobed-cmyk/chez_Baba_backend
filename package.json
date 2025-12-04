@@ -2,7 +2,7 @@
   "name": "chez_baba_backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/app.js",
   "engines": {
     "node": "22.16.0"
   },
