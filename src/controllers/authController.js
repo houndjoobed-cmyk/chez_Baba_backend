@@ -5,11 +5,20 @@ import { generateToken } from '../utils/jwt.js';
 // 📌 Inscription
 export const register = async (req, res) => {
     try {
-        const { nom, email, motdepasse, role } = req.body;
+        const { nom, email, motdepasse, role, adresse, telephone, ville } = req.body;
 
-        // Validation
+        // Validation de base
         if (!nom || !email || !motdepasse) {
-            return res.status(400).json({ error: 'Tous les champs sont requis' });
+            return res.status(400).json({ error: 'Nom, email et mot de passe sont requis' });
+        }
+
+        // Validation supplémentaire pour les vendeurs
+        if (role === 'vendor') {
+            if (!adresse || !telephone || !ville) {
+                return res.status(400).json({
+                    error: 'Pour les vendeurs, l\'adresse, le téléphone et la ville sont requis'
+                });
+            }
         }
 
         // Vérifie si l'email existe déjà
@@ -26,17 +35,25 @@ export const register = async (req, res) => {
         // Hash du mot de passe
         const hashedPassword = await bcrypt.hash(motdepasse, 10);
 
+        // Prépare les données à insérer
+        const userData = {
+            nom,
+            email,
+            motdepasse: hashedPassword,
+            role: role || 'client'
+        };
+
+        // Ajoute les champs supplémentaires pour les vendeurs
+        if (role === 'vendor') {
+            userData.adresse = adresse;
+            userData.telephone = telephone;
+            userData.ville = ville;
+        }
+
         // Insertion dans la base de données
         const { data, error } = await supabase
             .from('users')
-            .insert([
-                {
-                    nom,
-                    email,
-                    motdepasse: hashedPassword,
-                    role: role || 'client'
-                }
-            ])
+            .insert([userData])
             .select()
             .single();
 
@@ -47,14 +64,24 @@ export const register = async (req, res) => {
         // Génère le token
         const token = generateToken(data.id, data.email, data.role);
 
+        // Prépare la réponse utilisateur
+        const userResponse = {
+            id: data.id,
+            nom: data.nom,
+            email: data.email,
+            role: data.role
+        };
+
+        // Ajoute les informations supplémentaires pour les vendeurs
+        if (data.role === 'vendor') {
+            userResponse.adresse = data.adresse;
+            userResponse.telephone = data.telephone;
+            userResponse.ville = data.ville;
+        }
+
         res.status(201).json({
             message: 'Inscription réussie',
-            user: {
-                id: data.id,
-                nom: data.nom,
-                email: data.email,
-                role: data.role
-            },
+            user: userResponse,
             token
         });
     } catch (error) {
@@ -113,7 +140,7 @@ export const getProfile = async (req, res) => {
     try {
         const { data: user, error } = await supabase
             .from('users')
-            .select('id, nom, email, role, created_at')
+            .select('id, nom, email, role, adresse, telephone, ville, created_at')
             .eq('id', req.user.userId)
             .single();
 

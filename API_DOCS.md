@@ -34,17 +34,32 @@ Le token est retourné lors de l'inscription ou de la connexion.
 ## Inscription
 **POST** `/auth/register`
 
-**Body:**
+**Body (Client):**
 ```json
 {
   "nom": "Jean Dupont",
   "email": "jean@example.com",
   "motdepasse": "password123",
-  "role": "client" // ou "vendor" ou "admin"
+  "role": "client"
 }
 ```
 
-**Réponse:**
+**Body (Vendeur):**
+```json
+{
+  "nom": "Marie Vendeur",
+  "email": "marie@example.com",
+  "motdepasse": "password123",
+  "role": "vendor",
+  "adresse": "Rue de la Paix, Maison 45",
+  "telephone": "+229 97 12 34 56",
+  "ville": "Cotonou"
+}
+```
+
+**Note:** Pour les vendeurs (`role: "vendor"`), les champs `adresse`, `telephone` et `ville` sont **obligatoires**.
+
+**Réponse (Client):**
 ```json
 {
   "message": "Inscription réussie",
@@ -53,6 +68,23 @@ Le token est retourné lors de l'inscription ou de la connexion.
     "nom": "Jean Dupont",
     "email": "jean@example.com",
     "role": "client"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Réponse (Vendeur):**
+```json
+{
+  "message": "Inscription réussie",
+  "user": {
+    "id": "uuid",
+    "nom": "Marie Vendeur",
+    "email": "marie@example.com",
+    "role": "vendor",
+    "adresse": "Rue de la Paix, Maison 45",
+    "telephone": "+229 97 12 34 56",
+    "ville": "Cotonou"
   },
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
@@ -80,7 +112,7 @@ Le token est retourné lors de l'inscription ou de la connexion.
 
 **Headers:** `Authorization: Bearer {token}`
 
-**Réponse:**
+**Réponse (Client):**
 ```json
 {
   "user": {
@@ -88,6 +120,22 @@ Le token est retourné lors de l'inscription ou de la connexion.
     "nom": "Jean Dupont",
     "email": "jean@example.com",
     "role": "client",
+    "created_at": "2024-12-02T10:30:00"
+  }
+}
+```
+
+**Réponse (Vendeur):**
+```json
+{
+  "user": {
+    "id": "uuid",
+    "nom": "Marie Vendeur",
+    "email": "marie@example.com",
+    "role": "vendor",
+    "adresse": "Rue de la Paix, Maison 45",
+    "telephone": "+229 97 12 34 56",
+    "ville": "Cotonou",
     "created_at": "2024-12-02T10:30:00"
   }
 }
