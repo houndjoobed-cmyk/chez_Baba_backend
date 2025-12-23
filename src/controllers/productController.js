@@ -148,6 +148,56 @@ export const getProductById = async (req, res) => {
     }
 };
 
+// Ajouter après getProductById existant
+
+/**
+ * Obtenir un produit avec ses statistiques de notation
+ * Remplace ou complète getProductById
+ */
+export const getProductWithRatings = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: product, error } = await supabase
+            .from('products')
+            .select(`
+                *,
+                shops:shop_id (id, nom, logo, rating_average, rating_count),
+                categories:category_id (nom, slug)
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error || !product) {
+            return res.status(404).json({ error: 'Produit non trouvé' });
+        }
+
+        // Si utilisateur connecté, récupérer sa note
+        let userRating = null;
+        if (req.user) {
+            const { data } = await supabase
+                .from('product_ratings')
+                .select('rating')
+                .eq('product_id', id)
+                .eq('user_id', req.user.userId)
+                .single();
+            
+            userRating = data?.rating || null;
+        }
+
+        res.status(200).json({ 
+            product,
+            rating: {
+                average: product.rating_average,
+                count: product.rating_count,
+                userRating
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 // 📌 Récupérer les produits de MA boutique (vendeur)
 export const getMyProducts = async (req, res) => {
     try {
