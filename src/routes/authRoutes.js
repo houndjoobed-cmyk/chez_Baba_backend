@@ -1,4 +1,5 @@
 import express from 'express';
+import { body, validationResult } from 'express-validator';
 import {
     register,
     login,
@@ -16,63 +17,82 @@ import {
     strictLimiter,
     sanitizeInput 
 } from '../middleware/security.js';
-import {
-    validate,
-    registerClientSchema,
-    registerVendorSchema,
-    loginSchema,
-    forgotPasswordSchema,
-    resetPasswordSchema,
-    verifyOTPSchema
-} from '../validators/authValidator.js';
 
 const router = express.Router();
 
 // Middleware de sécurité appliqué à toutes les routes
 router.use(sanitizeInput);
 
+// Middleware de validation des erreurs
+const handleValidationErrors = (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(422).json({
+            error: 'Validation failed',
+            details: errors.array()
+        });
+    }
+    next();
+};
+
 // Routes publiques avec protection
 router.post('/register', 
     authLimiter,
-    (req, res, next) => {
-        // Validation conditionnelle selon le rôle
-        const schema = req.body.role === 'vendor' ? registerVendorSchema : registerClientSchema;
-        validate(schema)(req, res, next);
-    },
+    body('email').isEmail().normalizeEmail().withMessage('Email invalide'),
+    body('password').isLength({ min: 8 }).withMessage('Mot de passe: minimum 8 caractères'),
+    body('password').matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Mot de passe faible (a-z, A-Z, 0-9 requis)'),
+    body('role').isIn(['client', 'vendor']).withMessage('Rôle invalide'),
+    body('first_name').trim().isLength({ min: 2 }).withMessage('Prénom invalide'),
+    body('last_name').trim().isLength({ min: 2 }).withMessage('Nom invalide'),
+    body('phone').optional().isMobilePhone().withMessage('Téléphone invalide'),
+    body('shop_name').if((value, { req }) => req.body.role === 'vendor')
+        .trim().isLength({ min: 3 }).withMessage('Nom boutique: minimum 3 caractères'),
+    handleValidationErrors,
     register
 );
 
 router.post('/login', 
-    authLimiter, 
-    validate(loginSchema), 
+    authLimiter,
+    body('email').isEmail().normalizeEmail().withMessage('Email invalide'),
+    body('password').notEmpty().withMessage('Mot de passe requis'),
+    handleValidationErrors,
     login
 );
 
 router.post('/google',
-    authLimiter,
+    body('token').notEmpty().withMessage('Token Google requis'),
+    handleValidationErrors,
     googleAuth
 );
 
 router.post('/verify-email',
-    strictLimiter,
-    validate(verifyOTPSchema),
+    body('email').isEmail().normalizeEmail().withMessage('Email invalide'),
+    body('otp').isLength({ min: 4, max: 6 }).withMessage('OTP invalide'),
+    handleValidationErrors,
     verifyEmail
 );
 
 router.post('/resend-otp',
-    strictLimiter,
+    authLimiter,
+    body('email').isEmail().normalizeEmail().withMessage('Email invalide'),
+    handleValidationErrors,
     resendOTP
 );
 
 router.post('/forgot-password',
-    strictLimiter,
-    validate(forgotPasswordSchema),
+    authLimiter,
+    body('email').isEmail().normalizeEmail().withMessage('Email invalide'),
+    handleValidationErrors,
     forgotPassword
 );
 
 router.post('/reset-password',
     strictLimiter,
-    validate(resetPasswordSchema),
+    body('email').isEmail().normalizeEmail().withMessage('Email invalide'),
+    body('otp').isLength({ min: 4, max: 6 }).withMessage('OTP invalide'),
+    body('new_password').isLength({ min: 8 }).withMessage('Mot de passe: minimum 8 caractères'),
+    body('new_password').matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Mot de passe faible'),
+    handleValidationErrors,
     resetPassword
 );
 

@@ -13,9 +13,53 @@ class CartService {
     
     /**
      * Ajouter un produit au panier
-     * Logique : Vérifie le stock, ajoute ou met à jour la quantité
+     * Logique : Utilise RPC atomique pour éviter race conditions
      */
     async addToCart(userId, productId, quantity = 1) {
+        try {
+            // Validation basique
+            if (!userId || !productId || quantity <= 0) {
+                throw new Error('Données invalides');
+            }
+
+            // Utiliser la fonction RPC atomique
+            const { data, error } = await supabase.rpc('add_to_cart_atomic', {
+                p_user_id: userId,
+                p_product_id: productId,
+                p_quantity: quantity
+            });
+
+            if (error) {
+                console.error('Erreur RPC add_to_cart:', error);
+                if (error.message.includes('product_not_found')) {
+                    throw new Error('Produit non trouvé');
+                }
+                if (error.message.includes('insufficient_stock')) {
+                    throw new Error(`Stock insuffisant`);
+                }
+                throw new Error(error.message);
+            }
+
+            if (!data.success) {
+                throw new Error(data.error || 'Erreur ajout panier');
+            }
+
+            return {
+                success: true,
+                cartId: data.cart_id,
+                message: 'Produit ajouté au panier'
+            };
+
+        } catch (error) {
+            console.error('Erreur CartService.addToCart:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * ANCIENNE MÉTHODE (conservée pour compatibilité)
+     */
+    async addToCartOld(userId, productId, quantity = 1) {
         try {
             // 1. Vérifier que le produit existe et est disponible
             const { data: product, error: productError } = await supabase

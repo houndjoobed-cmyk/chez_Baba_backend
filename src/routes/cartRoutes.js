@@ -1,4 +1,5 @@
 import express from 'express';
+import { body, param, validationResult } from 'express-validator';
 import {
     addToCart,
     updateCartQuantity,
@@ -18,12 +19,44 @@ import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Middleware de validation des erreurs
+const handleValidationErrors = (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(422).json({
+            error: 'Validation failed',
+            details: errors.array()
+        });
+    }
+    next();
+};
+
 /**
  * Routes Panier (authentification requise)
  */
-router.post('/add', authenticate, addToCart);
-router.put('/update/:productId', authenticate, updateCartQuantity);
-router.delete('/remove/:productId', authenticate, removeFromCart);
+router.post('/add',
+    authenticate,
+    body('product_id').isUUID().withMessage('ID produit invalide'),
+    body('quantity').isInt({ min: 1, max: 1000 }).withMessage('Quantité invalide (1-1000)'),
+    handleValidationErrors,
+    addToCart
+);
+
+router.put('/update/:productId',
+    authenticate,
+    param('productId').isUUID().withMessage('ID produit invalide'),
+    body('quantity').isInt({ min: 1, max: 1000 }).withMessage('Quantité invalide (1-1000)'),
+    handleValidationErrors,
+    updateCartQuantity
+);
+
+router.delete('/remove/:productId',
+    authenticate,
+    param('productId').isUUID().withMessage('ID produit invalide'),
+    handleValidationErrors,
+    removeFromCart
+);
+
 router.get('/', authenticate, getCart);
 router.delete('/clear', authenticate, clearCart);
 router.get('/validate', authenticate, validateCart);
@@ -31,20 +64,50 @@ router.get('/validate', authenticate, validateCart);
 /**
  * Routes Favoris (authentification requise)
  */
-router.post('/wishlist/add', authenticate, addToWishlist);
-router.delete('/wishlist/remove/:productId', authenticate, removeFromWishlist);
+router.post('/wishlist/add',
+    authenticate,
+    body('product_id').isUUID().withMessage('ID produit invalide'),
+    handleValidationErrors,
+    addToWishlist
+);
+
+router.delete('/wishlist/remove/:productId',
+    authenticate,
+    param('productId').isUUID().withMessage('ID produit invalide'),
+    handleValidationErrors,
+    removeFromWishlist
+);
+
 router.get('/wishlist', authenticate, getWishlist);
-router.post('/wishlist/move-to-cart/:productId', authenticate, moveToCart);
+
+router.post('/wishlist/move-to-cart/:productId',
+    authenticate,
+    param('productId').isUUID().withMessage('ID produit invalide'),
+    handleValidationErrors,
+    moveToCart
+);
 
 /**
  * Routes Panier Invité (pas d'auth)
  */
-router.post('/guest/save', saveGuestCart);
+router.post('/guest/save',
+    body('items').isArray({ min: 1 }).withMessage('Panier vide'),
+    body('items.*.product_id').isUUID().withMessage('ID produit invalide'),
+    body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantité invalide'),
+    handleValidationErrors,
+    saveGuestCart
+);
+
 router.get('/guest', getGuestCart);
 
 /**
  * Fusion des paniers après connexion
  */
-router.post('/merge', authenticate, mergeCart);
+router.post('/merge',
+    authenticate,
+    body('items').isArray().withMessage('Items invalide'),
+    handleValidationErrors,
+    mergeCart
+);
 
 export default router;
