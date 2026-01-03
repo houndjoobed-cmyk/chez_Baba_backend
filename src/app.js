@@ -76,7 +76,10 @@ import i18nRoutes from './routes/i18nRoutes.js';
 
 // Middleware i18n
 import { i18nMiddleware } from './middleware/i18nMiddleware.js';
+import { supabaseMiddleware } from './middleware/supabaseMiddleware.js';
+
 app.use(i18nMiddleware);
+app.use(supabaseMiddleware);
 
 // Montage des routes API
 app.use('/api/auth', authRoutes);
@@ -113,7 +116,7 @@ const server = app.listen(PORT, () => {
     📊 Health: http://localhost:${PORT}/health
     📈 Metrics: http://localhost:${PORT}/metrics
   `);
-  
+
   // Démarrer les jobs CRON avec monitoring
   if (process.env.NODE_ENV !== 'test') {
     startCartJobs();

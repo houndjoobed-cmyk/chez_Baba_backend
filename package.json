@@ -10,11 +10,11 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "test": "NODE_ENV=test jest --coverage",
-    "test:watch": "NODE_ENV=test jest --watch",
-    "test:unit": "NODE_ENV=test jest --testMatch='**/*.unit.test.js'",
-    "test:integration": "NODE_ENV=test jest --testMatch='**/*.integration.test.js'",
-    "test:e2e": "NODE_ENV=test jest --testMatch='**/*.e2e.test.js' --runInBand"
+    "test": "cross-env NODE_ENV=test jest --coverage",
+    "test:watch": "cross-env NODE_ENV=test jest --watch",
+    "test:unit": "cross-env NODE_ENV=test jest --testMatch='**/*.unit.test.js'",
+    "test:integration": "cross-env NODE_ENV=test jest --testMatch='**/*.integration.test.js'",
+    "test:e2e": "cross-env NODE_ENV=test jest --testMatch='**/*.e2e.test.js' --runInBand"
   },
   "keywords": [],
   "author": "",

@@ -20,9 +20,26 @@ const generateResetToken = () => {
 };
 
 // 📌 Inscription avec validation et OTP
+// 📌 Inscription avec validation et OTP
 export const register = async (req, res) => {
     try {
-        const { nom, email, motdepasse, role, adresse, telephone, ville } = req.body;
+        // Normalisation des entrées (Snake_case du front vers Camel/DB)
+        const {
+            email,
+            password,
+            first_name,
+            last_name,
+            role,
+            phone,
+            shop_name,
+            address,
+            city
+        } = req.body;
+
+        // Validation basique des champs requis manquants (au cas où le middleware a laissé passer)
+        if (!email || !password || !first_name || !last_name) {
+            return res.status(400).json({ error: 'Champs obligatoires manquants' });
+        }
 
         // Vérifier si l'email existe déjà
         const { data: existingUser } = await supabase
@@ -36,11 +53,11 @@ export const register = async (req, res) => {
         }
 
         // Hash du mot de passe
-        const hashedPassword = await bcrypt.hash(motdepasse, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Préparer les données utilisateur
+        // Préparer les données utilisateur (Schema DB)
         const userData = {
-            nom,
+            nom: `${first_name} ${last_name}`.trim(), // Colonne 'nom' en base
             email,
             motdepasse: hashedPassword,
             role: role || 'client',
@@ -48,11 +65,12 @@ export const register = async (req, res) => {
             email_verified: false
         };
 
-        // Ajouter les champs vendeur si nécessaire
+        // Ajouter les champs vendeur si nécessaire (stockés dans users ou profil ?)
+        // Note: Idéalement ces champs devraient être dans une table 'profiles' ou 'shops'
         if (role === 'vendor') {
-            userData.adresse = adresse;
-            userData.telephone = telephone;
-            userData.ville = ville;
+            userData.adresse = address;
+            userData.telephone = phone;
+            userData.ville = city;
         }
 
         // Créer l'utilisateur
@@ -63,7 +81,26 @@ export const register = async (req, res) => {
             .single();
 
         if (error) {
-            return res.status(500).json({ error: error.message });
+            console.error('Erreur création user:', error);
+            return res.status(500).json({ error: 'Erreur lors de la création du compte' });
+        }
+
+        // Si Vendeur : Création automatique de la boutique
+        if (role === 'vendor' && shop_name) {
+            const { error: shopError } = await supabase
+                .from('shops')
+                .insert([{
+                    owner_id: newUser.id,
+                    nom: shop_name,
+                    description: '', // À remplir plus tard
+                    status: 'pending' // En attente de validation
+                }]);
+
+            if (shopError) {
+                console.error('Erreur création boutique:', shopError);
+                // On ne bloque pas l'inscription, mais on loggue l'erreur
+                // Le vendeur pourra créer sa boutique manuellement plus tard
+            }
         }
 
         // Générer et sauvegarder l'OTP
@@ -77,7 +114,12 @@ export const register = async (req, res) => {
         }]);
 
         // Envoyer l'email de vérification
-        await emailService.sendOTPEmail(email, otp);
+        try {
+            await emailService.sendOTPEmail(email, otp);
+        } catch (emailError) {
+            console.error('Erreur envoi email:', emailError);
+            // On continue même si l'email échoue (l'utilisateur pourra redemander un OTP)
+        }
 
         // Générer le token JWT
         const token = generateToken(newUser.id, newUser.email, newUser.role);
@@ -89,6 +131,7 @@ export const register = async (req, res) => {
                 nom: newUser.nom,
                 email: newUser.email,
                 role: newUser.role,
+                shop_name: shop_name || null,
                 email_verified: false
             },
             token
@@ -185,8 +228,8 @@ export const resendOTP = async (req, res) => {
             .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
 
         if (recentOTPs && recentOTPs.length >= 3) {
-            return res.status(429).json({ 
-                error: 'Trop de demandes. Réessayez dans une heure.' 
+            return res.status(429).json({
+                error: 'Trop de demandes. Réessayez dans une heure.'
             });
         }
 
@@ -236,8 +279,8 @@ export const login = async (req, res) => {
 
         // Vérifier si c'est un compte local
         if (user.auth_provider !== 'local') {
-            return res.status(400).json({ 
-                error: `Veuillez vous connecter avec ${user.auth_provider}` 
+            return res.status(400).json({
+                error: `Veuillez vous connecter avec ${user.auth_provider}`
             });
         }
 
@@ -321,7 +364,7 @@ export const googleAuth = async (req, res) => {
                         auth_provider: 'google'
                     })
                     .eq('id', existingUser.id);
-                
+
                 user = existingUser;
             } else if (existingUser.auth_provider === 'google') {
                 user = existingUser;
@@ -403,8 +446,8 @@ export const forgotPassword = async (req, res) => {
             .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
 
         if (recentRequests && recentRequests.length >= 3) {
-            return res.status(429).json({ 
-                error: 'Trop de demandes. Réessayez dans une heure.' 
+            return res.status(429).json({
+                error: 'Trop de demandes. Réessayez dans une heure.'
             });
         }
 
@@ -449,8 +492,8 @@ export const resetPassword = async (req, res) => {
             .single();
 
         if (!resetRequest) {
-            return res.status(400).json({ 
-                error: 'Token invalide ou expiré' 
+            return res.status(400).json({
+                error: 'Token invalide ou expiré'
             });
         }
 
@@ -501,22 +544,22 @@ export const getProfile = async (req, res) => {
 export const enable2FA = async (req, res) => {
     try {
         const userId = req.user.userId;
-        
+
         // Générer un secret pour 2FA
         const secret = crypto.randomBytes(20).toString('hex');
-        
+
         // Sauvegarder le secret
         await supabase
             .from('users')
-            .update({ 
+            .update({
                 two_fa_secret: secret,
                 two_fa_enabled: false // Sera activé après vérification
             })
             .eq('id', userId);
-        
+
         // Générer un QR code (vous pouvez utiliser une librairie comme 'qrcode')
         const otpAuthUrl = `otpauth://totp/ChezBaba:${req.user.email}?secret=${secret}&issuer=ChezBaba`;
-        
+
         res.status(200).json({
             message: 'Scannez ce QR code avec votre application d\'authentification',
             secret,

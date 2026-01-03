@@ -6,18 +6,7 @@ export const createProduct = async (req, res) => {
         const { titre, description, prix, stock, image, category_id } = req.body;
         const userId = req.user.userId;
 
-        // Validation
-        if (!titre || !prix) {
-            return res.status(400).json({ error: 'Le titre et le prix sont requis' });
-        }
-
-        if (!category_id) {
-            return res.status(400).json({ error: 'La catégorie est requise' });
-        }
-
-        if (prix < 0) {
-            return res.status(400).json({ error: 'Le prix doit être positif' });
-        }
+        // Note: La validation des champs est gérée par le middleware express-validator
 
         // Vérifie que la catégorie existe
         const { data: category, error: catError } = await supabase
@@ -181,11 +170,11 @@ export const getProductWithRatings = async (req, res) => {
                 .eq('product_id', id)
                 .eq('user_id', req.user.userId)
                 .single();
-            
+
             userRating = data?.rating || null;
         }
 
-        res.status(200).json({ 
+        res.status(200).json({
             product,
             rating: {
                 average: product.rating_average,

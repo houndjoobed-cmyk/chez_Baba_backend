@@ -1,3 +1,4 @@
+import { jest, afterEach, afterAll } from '@jest/globals';
 import 'jest-extended';
 import { supabase } from '../src/config/supabase.js';
 

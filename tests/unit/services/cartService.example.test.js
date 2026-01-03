@@ -1,12 +1,10 @@
+import { jest, describe, beforeAll, test, expect } from '@jest/globals';
 import CartService from '../../../src/services/cartService.js';
 import { supabase } from '../../../src/config/supabase.js';
 
 describe('CartService - Basic Tests', () => {
-    let cartService;
-
-    beforeAll(() => {
-        cartService = new CartService();
-    });
+    // CartService is imported as an instance by default
+    const cartService = CartService;
 
     describe('addToCart', () => {
         test('should create cartService instance', () => {
@@ -24,8 +22,8 @@ describe('CartService - Basic Tests', () => {
         });
 
         test('should use RPC function', async () => {
-            const rpcSpy = jest.spyOn(supabase, 'rpc');
-            
+            const rpcSpy = jest.spyOn(supabase, 'rpc').mockResolvedValue({ data: { success: true }, error: null });
+
             try {
                 await cartService.addToCart(
                     '550e8400-e29b-41d4-a716-446655440001',
