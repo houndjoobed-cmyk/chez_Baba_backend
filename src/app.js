@@ -29,8 +29,15 @@ app.use(helmet({
 }));
 
 // CORS
+// CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'http://127.0.0.1:3000',
+    process.env.FRONTEND_URL
+  ].filter(Boolean), // Filtre les valeurs nulles/undefined
   credentials: true
 }));
 

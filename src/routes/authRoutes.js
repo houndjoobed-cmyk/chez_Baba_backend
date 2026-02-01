@@ -12,10 +12,10 @@ import {
     enable2FA
 } from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
-import { 
-    authLimiter, 
+import {
+    authLimiter,
     strictLimiter,
-    sanitizeInput 
+    sanitizeInput
 } from '../middleware/security.js';
 
 const router = express.Router();
@@ -36,7 +36,7 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 // Routes publiques avec protection
-router.post('/register', 
+router.post('/register',
     authLimiter,
     body('email').isEmail().normalizeEmail().withMessage('Email invalide'),
     body('password').isLength({ min: 8 }).withMessage('Mot de passe: minimum 8 caractères'),
@@ -51,7 +51,7 @@ router.post('/register',
     register
 );
 
-router.post('/login', 
+router.post('/login',
     authLimiter,
     body('email').isEmail().normalizeEmail().withMessage('Email invalide'),
     body('password').notEmpty().withMessage('Mot de passe requis'),
@@ -60,7 +60,7 @@ router.post('/login',
 );
 
 router.post('/google',
-    body('token').notEmpty().withMessage('Token Google requis'),
+    body('idToken').notEmpty().withMessage('Token Google requis'),
     handleValidationErrors,
     googleAuth
 );
